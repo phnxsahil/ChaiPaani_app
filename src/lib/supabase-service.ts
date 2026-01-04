@@ -63,16 +63,17 @@ export const authService = {
 }
 
 export const groupService = {
+  createGroup: async (name: string, description: string, category: string = 'general') => {
     const user = await authService.getCurrentUser()
     if (!user) return { data: null, error: { message: 'User not authenticated' } }
 
     // Ensure created_by is set to the current user's ID
     const { data, error } = await supabase
       .from('groups')
-      .insert([{ 
-        name, 
-        description, 
-        category, 
+      .insert([{
+        name,
+        description,
+        category,
         created_by: user.id,
         currency: 'INR' // Default currency
       }])
@@ -83,9 +84,9 @@ export const groupService = {
       // Insert creator as admin member (RLS should allow this)
       const { error: memberError } = await supabase
         .from('group_members')
-        .insert([{ 
-          group_id: data.id, 
-          user_id: user.id, 
+        .insert([{
+          group_id: data.id,
+          user_id: user.id,
           role: 'admin',
           joined_at: new Date().toISOString()
         }])
@@ -451,7 +452,7 @@ export const expenseService = {
     // Send email notifications asynchronously (don't wait or fail if it errors)
     try {
       const enableEmailNotifications = (import.meta as any).env?.VITE_ENABLE_EXPENSE_EMAILS !== 'false'
-      
+
       if (enableEmailNotifications) {
         // Call the notify-expense Edge function asynchronously
         supabase.functions.invoke('notify-expense', {
@@ -515,7 +516,7 @@ export const expenseService = {
     try {
       const user = await authService.getCurrentUser()
       if (!user) return { data: [], error: { message: 'User not authenticated' } }
-  
+
       // Phase 1a: Get expenses where the user is the payer
       const { data: payerExpenses, error: payerError } = await supabase
         .from('expenses')
@@ -556,9 +557,9 @@ export const expenseService = {
 
       // Merge, dedupe, sort, limit
       const expenseMap = new Map<string, any>()
-      ;[...(payerExpenses || []), ...splitExpenses].forEach((exp: any) => {
-        expenseMap.set(exp.id, exp)
-      })
+        ;[...(payerExpenses || []), ...splitExpenses].forEach((exp: any) => {
+          expenseMap.set(exp.id, exp)
+        })
       const expenses = Array.from(expenseMap.values())
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, limit)
@@ -566,38 +567,38 @@ export const expenseService = {
       if (!expenses || expenses.length === 0) {
         return { data: [], error: null }
       }
-  
+
       // Phase 2: Get group details for these expenses
       const groupIds = [...new Set(expenses.map(e => e.group_id))]
       const { data: groups, error: groupsError } = await supabase
         .from('groups')
         .select('id, name, category')
         .in('id', groupIds)
-  
+
       if (groupsError) {
         console.error('Error fetching groups for activity:', groupsError)
         return { data: [], error: groupsError }
       }
-  
+
       // Phase 3: Get profile details for payers
       const payerIds = [...new Set(expenses.map(e => e.payer_id))]
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, full_name, display_name')
         .in('id', payerIds)
-  
+
       if (profilesError) {
         console.error('Error fetching profiles for activity:', profilesError)
         return { data: [], error: profilesError }
       }
-  
+
       // Compose the final activity data
       const activity = expenses.map(expense => {
         const group = groups?.find(g => g.id === expense.group_id) || { name: 'Unknown Group', category: 'general' }
         const payer = profiles?.find(p => p.id === expense.payer_id) || { full_name: 'Unknown', display_name: null }
         const payerName = payer.display_name || payer.full_name || 'Unknown'
         const isCurrentUserPayer = expense.payer_id === user.id
-  
+
         return {
           id: expense.id,
           description: expense.description,
@@ -616,7 +617,7 @@ export const expenseService = {
           }
         }
       })
-  
+
       return { data: activity, error: null }
     } catch (error) {
       console.error('Error in getActivitySafe:', error)
@@ -822,14 +823,14 @@ export const invitationService = {
       // Email delivery path
       const enableSmtp = import.meta.env.VITE_ENABLE_SMTP === 'true'
       const enableLegacyInvite = import.meta.env.VITE_ENABLE_INVITE_EMAIL === 'true'
-      
+
       console.log('🔔 Email notification settings:', { enableSmtp, enableLegacyInvite })
-      
+
       // Try SMTP first if enabled, else fall back to legacy edge invite function
       if (enableSmtp) {
         try {
           console.log('📧 Attempting to send invitation email via SMTP to:', email)
-          
+
           // Fetch inviter's profile and group details for a personalized email
           const user = await authService.getCurrentUser()
           const { data: inviterProfile } = await supabase
@@ -837,7 +838,7 @@ export const invitationService = {
             .select('full_name, display_name, email')
             .eq('id', user?.id)
             .single()
-          
+
           const { data: groupData } = await supabase
             .from('groups')
             .select('name')
@@ -856,7 +857,7 @@ export const invitationService = {
           const mottoPrimary = 'Splitting bills is easy as making chai'
           const mottoSecondary = 'Split bills with friends, effortlessly'
           const footerLine = 'Making bill splitting simple and fun.'
-          
+
           const html = `
             <!DOCTYPE html>
             <html>
@@ -917,7 +918,7 @@ export const invitationService = {
             </body>
             </html>
           `
-          
+
           // NOTE: The Supabase client SDK does not provide server-side-only
           // helpers like `inviteUserByEmail` in the browser. Instead we use our
           // Edge function `smtp-send` to deliver invitation emails. The code
@@ -1020,7 +1021,7 @@ export const invitationService = {
         .select('created_by, name') // Also fetch group name
         .eq('id', groupId)
         .single()
-      
+
       if (groupError) return { data: null, error: groupError }
       if (group.created_by !== user.id) return { data: null, error: { message: 'Only group creator can resend invitations' } }
 
@@ -1053,12 +1054,12 @@ export const invitationService = {
       const emailLinkBase2 = (((import.meta as any).env?.VITE_EMAIL_LINK_BASE || (import.meta as any).env?.VITE_PUBLIC_APP_URL) as string | undefined)?.replace(/\/$/, '') || ''
       const base = emailLinkBase2 || ((typeof window !== 'undefined' ? window.location.origin : '') || '').replace(/\/$/, '')
       const inviteUrl = `${base}/#token=${encodeURIComponent(invite.token)}`
-  const title = `Reminder: You're invited to join ${groupName} on ChaiPaani`
-  const logoUrl = (import.meta as any).env?.VITE_PUBLIC_LOGO_URL || 'https://edwjkqbrvcoqsrfxqtyu.supabase.co/storage/v1/object/public/public-assets/email_banner.png'
-  const mottoPrimary = 'Splitting bills is easy as making chai'
-  const mottoSecondary = 'Split bills with friends, effortlessly'
-  const footerLine = 'Making bill splitting simple and fun.'
-      
+      const title = `Reminder: You're invited to join ${groupName} on ChaiPaani`
+      const logoUrl = (import.meta as any).env?.VITE_PUBLIC_LOGO_URL || 'https://edwjkqbrvcoqsrfxqtyu.supabase.co/storage/v1/object/public/public-assets/email_banner.png'
+      const mottoPrimary = 'Splitting bills is easy as making chai'
+      const mottoSecondary = 'Split bills with friends, effortlessly'
+      const footerLine = 'Making bill splitting simple and fun.'
+
       const html = `
         <!DOCTYPE html>
         <html>
@@ -1119,7 +1120,7 @@ export const invitationService = {
       `
       // --- End: Use new professional email template ---
 
-  const text = `ChaiPaani\n${mottoPrimary}\n${mottoSecondary}\n\nReminder: ${inviterName} invited you to join "${groupName}" on ChaiPaani.\nAccept: ${inviteUrl}\n\n${footerLine}`
+      const text = `ChaiPaani\n${mottoPrimary}\n${mottoSecondary}\n\nReminder: ${inviterName} invited you to join "${groupName}" on ChaiPaani.\nAccept: ${inviteUrl}\n\n${footerLine}`
       const forceTextOnly = (import.meta as any).env?.VITE_FORCE_PLAINTEXT_EMAILS === 'true'
       const forceHtmlOnly = (import.meta as any).env?.VITE_FORCE_HTML_ONLY_EMAILS === 'true'
       const htmlToSend = forceTextOnly ? undefined : html
@@ -1152,12 +1153,12 @@ export const profileService = {
   updateProfile: async (updates: { display_name?: string; phone?: string }) => {
     const user = await authService.getCurrentUser()
     if (!user) return { data: null, error: { message: 'User not authenticated' } }
-    
+
     // Build update object with only provided fields
     const updateData: any = {}
     if (updates.display_name !== undefined) updateData.display_name = updates.display_name
     if (updates.phone !== undefined) updateData.phone = updates.phone
-    
+
     const { data, error } = await supabase
       .from('profiles')
       .update(updateData)

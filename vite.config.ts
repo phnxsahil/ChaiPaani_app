@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
       open: true, // open browser automatically
     },
     build: {
-      outDir: 'build',
+      outDir: 'dist',
     },
     define: {
       // Pass all env variables to the client-side code

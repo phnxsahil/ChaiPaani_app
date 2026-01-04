@@ -13,7 +13,7 @@ import ChaiPaaniLogo from "../assets/ed44a61a321c772f05e626fe7aae98312671f4e9.pn
 import ChaiPaaniLogoFull from "../assets/chaipaani_logo.png";
 import * as Sonner from "sonner";
 import { profileService, authService } from "../lib/supabase-service";
-import { 
+import {
   ArrowLeft,
   User,
   Bell,
@@ -41,7 +41,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
   const [isEditing, setIsEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [smtpOpen, setSmtpOpen] = useState(false);
-  
+
   // Profile settings (loaded from Supabase)
   const [profile, setProfile] = useState({
     name: '',
@@ -52,7 +52,6 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
   });
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
-  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -86,7 +85,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
 
     loadProfile();
   }, []);
-  
+
   // Notification settings
   const [notifications, setNotifications] = useState({
     pushEnabled: true,
@@ -99,7 +98,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
     groupInvitations: true,
     settlementRequests: true
   });
-  
+
   // Privacy settings
   const [privacy, setPrivacy] = useState({
     profileVisibility: 'friends',
@@ -107,7 +106,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
     allowInvitations: true,
     shareAnalytics: false
   });
-  
+
   // Appearance settings
   const [appearance, setAppearance] = useState({
     theme: 'light',
@@ -119,7 +118,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
   const handleSaveProfile = async () => {
     // Prevent concurrent saves
     if (savingProfile) return;
-    
+
     try {
       setSavingProfile(true);
 
@@ -202,31 +201,31 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
             >
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            
-            <button 
+
+            <button
               onClick={onLogoClick}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
               {/* Mobile Logo */}
-              <img 
-                src={ChaiPaaniLogo} 
-                alt="ChaiPaani Logo" 
+              <img
+                src={ChaiPaaniLogo}
+                alt="ChaiPaani Logo"
                 className="h-15 w-auto md:hidden"
               />
               {/* Desktop Logo */}
-              <img 
-                src={ChaiPaaniLogoFull} 
-                alt="ChaiPaani Logo" 
+              <img
+                src={ChaiPaaniLogoFull}
+                alt="ChaiPaani Logo"
                 className="h-18 w-auto hidden md:block"
               />
             </button>
-            
+
             <div>
               <h1 className="text-xl font-semibold">Settings</h1>
               <p className="text-sm text-muted-foreground">Manage your account and preferences</p>
             </div>
           </div>
-          
+
           <Button onClick={onLogout} variant="outline" size="sm">
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -259,7 +258,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
               Data
             </TabsTrigger>
           </TabsList>
-          
+
           {/* Profile Tab */}
           <TabsContent value="profile" className="space-y-6">
             <Card>
@@ -397,7 +396,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                     </Select>
                   </div>
                 </div>
-                
+
                 {isEditing && (
                   <div className="flex gap-2 pt-4">
                     <Button
@@ -421,7 +420,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
             <Card>
@@ -454,7 +453,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                         onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, pushEnabled: checked }))}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Email Notifications</p>
@@ -465,7 +464,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                         onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, emailEnabled: checked }))}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">SMS Notifications</p>
@@ -478,9 +477,9 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                     </div>
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 {/* Specific Notifications */}
                 <div>
                   <h3 className="font-medium mb-4">Activity Notifications</h3>
@@ -495,7 +494,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                         onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, expenseAdded: checked }))}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Payment Received</p>
@@ -506,7 +505,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                         onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, paymentReceived: checked }))}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Payment Reminders</p>
@@ -517,7 +516,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                         onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, paymentReminders: checked }))}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Group Invitations</p>
@@ -528,7 +527,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                         onCheckedChange={(checked) => setNotifications(prev => ({ ...prev, groupInvitations: checked }))}
                       />
                     </div>
-                    
+
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">Weekly Digest</p>
@@ -544,7 +543,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Privacy Tab */}
           <TabsContent value="privacy" className="space-y-6">
             <Card>
@@ -555,8 +554,8 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Profile Visibility</Label>
-                    <Select 
-                      value={privacy.profileVisibility} 
+                    <Select
+                      value={privacy.profileVisibility}
                       onValueChange={(value) => setPrivacy(prev => ({ ...prev, profileVisibility: value }))}
                     >
                       <SelectTrigger>
@@ -569,7 +568,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Show Activity Status</p>
@@ -580,7 +579,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       onCheckedChange={(checked) => setPrivacy(prev => ({ ...prev, showActivity: checked }))}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Allow Group Invitations</p>
@@ -591,7 +590,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       onCheckedChange={(checked) => setPrivacy(prev => ({ ...prev, allowInvitations: checked }))}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Share Analytics</p>
@@ -606,7 +605,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Appearance Tab */}
           <TabsContent value="appearance" className="space-y-6">
             <Card>
@@ -617,8 +616,8 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label>Theme</Label>
-                    <Select 
-                      value={appearance.theme} 
+                    <Select
+                      value={appearance.theme}
                       onValueChange={(value) => handleAppearanceChange('theme', value)}
                     >
                       <SelectTrigger>
@@ -631,11 +630,11 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Accent Color</Label>
-                    <Select 
-                      value={appearance.accentColor} 
+                    <Select
+                      value={appearance.accentColor}
                       onValueChange={(value) => setAppearance(prev => ({ ...prev, accentColor: value }))}
                     >
                       <SelectTrigger>
@@ -649,7 +648,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Compact View</p>
@@ -660,7 +659,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       onCheckedChange={(checked) => setAppearance(prev => ({ ...prev, compactView: checked }))}
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">Show Avatars</p>
@@ -675,7 +674,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Data Tab */}
           <TabsContent value="data" className="space-y-6">
             <Card>
@@ -694,7 +693,7 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                       Export
                     </Button>
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <p className="font-medium">Import Data</p>
@@ -709,11 +708,11 @@ export function SettingsPage({ onBack, onLogout, onLogoClick }: SettingsPageProp
                     </Button>
                   </div>
                 </div>
-                  <Separator />
+                <Separator />
 
                 <div className="space-y-4">
                   <h3 className="font-medium text-destructive">Danger Zone</h3>
-                  
+
                   <div className="flex items-center justify-between p-4 border border-destructive rounded-lg">
                     <div>
                       <p className="font-medium">Delete Account</p>
