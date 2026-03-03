@@ -22,12 +22,25 @@ export const authService = {
     return { data, error }
   },
 
-  signInWithGoogle: async () => {
+  signInWithGoogle: async (inviteToken?: string) => {
+    // When VITE_GOOGLE_PROXY_ENABLED=true (set in Vercel env for production),
+    // use our custom relay (/api/auth/google) that keeps all traffic on
+    // *.vercel.app and never touches *.supabase.co — bypasses Indian ISP blocks.
+    if (import.meta.env.VITE_GOOGLE_PROXY_ENABLED === 'true') {
+      const params = new URLSearchParams()
+      if (inviteToken) params.set('invite_token', inviteToken)
+      const url = `/api/auth/google${params.toString() ? `?${params.toString()}` : ''}`
+      window.location.href = url
+      // Return a pending-like object; the page will redirect before this resolves.
+      return { data: null, error: null }
+    }
+
+    // Development / non-Vercel fallback: standard Supabase OAuth.
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: import.meta.env.VITE_SUPABASE_REDIRECT_URL || (() => {
-          if (typeof window !== 'undefined') return window.location.origin
+          if (typeof window !== 'undefined') return `${window.location.origin}/auth/callback`
           throw new Error('VITE_SUPABASE_REDIRECT_URL must be configured')
         })()
       }

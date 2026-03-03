@@ -27,6 +27,33 @@ export function AuthCallback({ onAuthSuccess, onAuthError }: AuthCallbackProps) 
 
   if (token) logger.info("Invitation token present");
 
+        // ── Custom Google OAuth relay (ISP-bypass mode) ──────────────────────
+        // When VITE_GOOGLE_PROXY_ENABLED=true our /api/auth/google/callback
+        // redirects here with ?provider=google&id_token=...  instead of going
+        // through *.supabase.co.  Exchange the id_token for a Supabase session.
+        const provider = urlParams.get('provider');
+        const idToken = urlParams.get('id_token');
+        if (provider === 'google' && idToken) {
+          logger.info("Processing Google id_token from custom relay");
+          const { error: idTokenError } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: idToken,
+          });
+          if (idTokenError) {
+            logger.error("signInWithIdToken failed", { message: idTokenError.message });
+            setError(idTokenError.message);
+            setTimeout(() => onAuthError(), 3000);
+            return;
+          }
+          // Scrub sensitive token from URL address bar.
+          const cleanUrl = new URL(window.location.href);
+          cleanUrl.searchParams.delete('id_token');
+          cleanUrl.searchParams.delete('provider');
+          window.history.replaceState({}, '', cleanUrl.toString());
+          logger.info("signInWithIdToken succeeded, continuing to session check");
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         // Handle the OAuth callback
         const { data, error } = await supabase.auth.getSession();
 

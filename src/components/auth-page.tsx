@@ -60,7 +60,10 @@ export function AuthPage({ onLogin, onBack, onLogoClick }: AuthPageProps) {
     if (provider === "google") {
       setIsLoading(true);
       try {
-        const { data, error } = await authService.signInWithGoogle();
+        // Pass any invite token from the URL so it survives the OAuth round-trip.
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteToken = urlParams.get('token') ?? undefined;
+        const { data, error } = await authService.signInWithGoogle(inviteToken);
         if (error) throw error;
         // OAuth redirect will handle the rest
       } catch (error: any) {
