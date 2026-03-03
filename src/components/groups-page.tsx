@@ -10,6 +10,7 @@ import { AddExpenseModal } from "./add-expense-modal";
 import { CreateGroupModal } from "./create-group-modal";
 import { SettleUpModal } from "./settle-up-modal";
 import { GroupMenuModal } from "./group-menu-modal";
+import { AddMembersModal } from "./add-members-modal";
 import { EditGroupModal } from "./edit-group-modal";
 import {
   Plus,
@@ -69,6 +70,7 @@ export function GroupsPage({ onLogout, onBack, onLogoClick, onGoToGroup }: Group
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showEditGroup, setShowEditGroup] = useState(false);
+  const [showAddMembers, setShowAddMembers] = useState(false);
   const [showSettleUp, setShowSettleUp] = useState(false);
   const [groups, setGroups] = useState<Group[]>([]);
   const openEditGroupModal = (group: { id: string; name: string }) => {
@@ -772,31 +774,69 @@ export function GroupsPage({ onLogout, onBack, onLogoClick, onGoToGroup }: Group
         }}
       />
 
-      {selectedGroup && showGroupMenu && (
+      {selectedGroup && (
         <GroupMenuModal
-          groupId={selectedGroup.id}
-          groupName={selectedGroup.name}
-          isOwner={currentUser && selectedGroup.created_by === currentUser.id}
+          isOpen={showGroupMenu}
+          isOwner={!!(currentUser && selectedGroup.created_by === currentUser.id)}
           onClose={() => {
             setShowGroupMenu(false);
             setSelectedGroup(null);
           }}
-          onGroupUpdate={() => {
-            fetchUserGroups();
-            setShowGroupMenu(false);
-            setSelectedGroup(null);
+          group={{
+            id: selectedGroup.id,
+            name: selectedGroup.name,
+            description: selectedGroup.description || "",
+            memberCount: selectedGroup.memberCount,
+            totalExpenses: selectedGroup.totalExpenses,
+            yourBalance: selectedGroup.yourBalance,
+            category: selectedGroup.category,
+            members: selectedGroup.members,
           }}
-          onGroupLeave={() => {
-            fetchUserGroups();
+          onEditGroup={() => {
+            openEditGroupModal({ id: selectedGroup.id, name: selectedGroup.name });
             setShowGroupMenu(false);
-            setSelectedGroup(null);
           }}
-          onGroupDelete={() => {
-            fetchUserGroups();
+          onAddMembers={() => {
+            setShowAddMembers(true);
             setShowGroupMenu(false);
-            setSelectedGroup(null);
           }}
-          openEditGroupModal={openEditGroupModal}
+          onSettleUp={() => {
+            setShowSettleUp(true);
+            setShowGroupMenu(false);
+          }}
+          onGroupLeave={async () => {
+            try {
+              const { error } = await groupService.leaveGroup(selectedGroup.id);
+              if (error) throw error;
+              fetchUserGroups();
+              setShowGroupMenu(false);
+              setSelectedGroup(null);
+            } catch (err: any) {
+              notify.error(err?.message || 'Failed to leave group');
+            }
+          }}
+          onDeleteGroup={async () => {
+            try {
+              const { error } = await groupService.deleteGroup(selectedGroup.id);
+              if (error) throw error;
+              fetchUserGroups();
+              setShowGroupMenu(false);
+              setSelectedGroup(null);
+            } catch (err: any) {
+              notify.error(err?.message || 'Failed to delete group');
+            }
+          }}
+        />
+      )}
+
+      {selectedGroup && (
+        <AddMembersModal
+          isOpen={showAddMembers}
+          onClose={() => setShowAddMembers(false)}
+          group={{ id: selectedGroup.id, name: selectedGroup.name }}
+          onMembersAdded={() => {
+            fetchUserGroups();
+          }}
         />
       )}
 
