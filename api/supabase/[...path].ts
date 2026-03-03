@@ -1,10 +1,28 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { IncomingMessage } from 'http';
 
 /**
  * Supabase Proxy — forwards all requests from /api/supabase/... to the real
  * Supabase URL (stored server-side only). This lets the browser talk to
  * *.vercel.app instead of *.supabase.co, bypassing Indian ISP DNS blocks.
+ *
+ * bodyParser is disabled so we receive the raw stream and can forward it
+ * unchanged (handles JSON, form data, binary uploads, etc.).
  */
+export const config = {
+  api: { bodyParser: false },
+};
+
+/** Read raw request body as a Buffer. */
+function readRawBody(req: IncomingMessage): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -36,11 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Vercel auto-parses JSON bodies into req.body as an object, so we must
     // re-stringify to get the raw bytes. content-length is intentionally
     // omitted above so fetch computes the correct length automatically.
-    let body: string | undefined;
+    let body: Buffer | undefined;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      if (req.body !== undefined && req.body !== null) {
-        body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-      }
+      body = await readRawBody(req);
+      if (body.length === 0) body = undefined;
     }
 
     const upstream = await fetch(targetUrl, {
