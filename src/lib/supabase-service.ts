@@ -77,40 +77,13 @@ export const authService = {
 
 export const groupService = {
   createGroup: async (name: string, description: string, category: string = 'general') => {
-    const user = await authService.getCurrentUser()
-    if (!user) return { data: null, error: { message: 'User not authenticated' } }
-
-    // Ensure created_by is set to the current user's ID
-    const { data, error } = await supabase
-      .from('groups')
-      .insert([{
-        name,
-        description,
-        category,
-        created_by: user.id,
-        currency: 'INR' // Default currency
-      }])
-      .select()
-      .single()
-
-    if (data && !error) {
-      // Insert creator as admin member (RLS should allow this)
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert([{
-          group_id: data.id,
-          user_id: user.id,
-          role: 'admin',
-          joined_at: new Date().toISOString()
-        }])
-
-      if (memberError) {
-        console.error('Could not add creator as admin member:', memberError)
-        // Don't fail the group creation, just log the error
-      }
-    }
-
-    return { data, error }
+    // Atomic RPC: group + creator member inserted in a single transaction
+    const { data: rpcData, error } = await supabase.rpc('create_group_with_member', {
+      p_name: name,
+      p_description: description,
+      p_category: category
+    })
+    return { data: rpcData ?? null, error }
   },
   updateGroup: async (id: string, name: string, description: string, category: string = 'general') => {
     const user = await authService.getCurrentUser()
@@ -419,48 +392,26 @@ export const expenseService = {
     const user = await authService.getCurrentUser()
     if (!user) return { data: null, error: { message: 'User not authenticated' } }
 
-    // Rely on RLS to enforce membership at insert time (avoids false negatives from RPC visibility)
+    // Atomic RPC: expense + splits inserted in a single transaction; no orphaned rows possible
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_expense_with_splits', {
+      p_group_id: groupId,
+      p_description: description,
+      p_amount: amount,
+      p_category: category,
+      p_notes: notes ?? null,
+      p_splits: splits
+    })
 
-    // Create the expense
-    const { data: expense, error: expenseError } = await supabase
-      .from('expenses')
-      .insert({
-        group_id: groupId,
-        payer_id: user.id,
-        description,
-        amount,
-        category,
-        notes
-      })
-      .select()
-      .single()
-
-    if (expenseError) {
-      // Prefer structured error properties over brittle message checks
-      const code = (expenseError as any)?.code
-      const status = (expenseError as any)?.status
+    if (rpcError) {
+      const code = (rpcError as any)?.code
+      const status = (rpcError as any)?.status
       if (code === 'PGRST301' || code === '42501' || status === 403) {
         return { data: null, error: { message: 'User is not a member of this group' } }
       }
-      return { data: null, error: expenseError }
+      return { data: null, error: rpcError }
     }
 
-    // Create the expense splits
-    const splitsData = splits.map(split => ({
-      expense_id: expense.id,
-      user_id: split.user_id,
-      amount: split.amount
-    }))
-    const { error: splitsError } = await supabase
-      .from('expense_splits')
-      .insert(splitsData)
-      .select()
-
-    if (splitsError) {
-      // Cleanup orphaned expense
-      await supabase.from('expenses').delete().eq('id', expense.id)
-      return { data: null, error: splitsError }
-    }
+    const expense = { id: rpcData.expense_id }
 
     // Send email notifications asynchronously (don't wait or fail if it errors)
     try {
@@ -493,24 +444,11 @@ export const expenseService = {
     return { data: expense, error: null }
   },
 
-  // Batched balances for multiple groups using the existing per-group calculator
+  // Batched balances: single DB round-trip replaces N×2 concurrent queries
   getUserBalancesForGroups: async (groupIds: string[]) => {
-    try {
-      const results = await Promise.all(
-        (groupIds || []).map(async (gid) => {
-          const { data, error } = await expenseService.getUserBalance(gid)
-          if (error || !data || !Array.isArray(data) || data.length === 0) {
-            return { group_id: gid, net_balance: 0 }
-          }
-          // getUserBalance(groupId) returns array with net_balance
-          const net = (data[0] as any)?.net_balance ?? 0
-          return { group_id: gid, net_balance: Number(net) || 0 }
-        })
-      )
-      return { data: results, error: null as any }
-    } catch (error) {
-      return { data: [], error }
-    }
+    if (!groupIds || groupIds.length === 0) return { data: [], error: null }
+    const { data, error } = await supabase.rpc('get_balances_for_groups', { p_group_ids: groupIds })
+    return { data: data ?? [], error }
   },
 
   // Join-safe, columns-only selection; app composes details
@@ -638,70 +576,11 @@ export const expenseService = {
     }
   },
 
-  // Returns overall balance with a safe query for group scoped balance
+  // Returns balance for auth.uid() in a group — single DB-side aggregation, no client math
   getUserBalance: async (groupId?: string) => {
     if (groupId) {
-      try {
-        const user = await authService.getCurrentUser()
-        if (!user) return { data: null, error: { message: 'User not authenticated' } }
-
-        // Verify user is member of the group
-        const { data: membership, error: membershipError } = await supabase
-          .from('group_members')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('user_id', user.id)
-          .single()
-
-        if (membershipError || !membership) {
-          return { data: null, error: { message: 'User is not a member of this group' } }
-        }
-
-        // Get balance data using direct queries
-        const { data: balanceData, error: balanceError } = await supabase
-          .from('expense_splits')
-          .select(`
-            amount,
-            is_settled,
-            expenses!inner(
-              payer_id,
-              group_id
-            )
-          `)
-          .eq('expenses.group_id', groupId)
-
-        if (balanceError) return { data: null, error: balanceError }
-
-        // Calculate balances
-        let amountOwed = 0
-        let amountOwes = 0
-
-        balanceData?.forEach((split: any) => {
-          if (!split.is_settled) {
-            const exp = Array.isArray(split.expenses) ? split.expenses[0] : split.expenses;
-            const payerId = exp?.payer_id;
-            if (payerId === user.id) {
-              // Others owe user
-              amountOwed += split.amount
-            } else {
-              // User owes others
-              amountOwes += split.amount
-            }
-          }
-        })
-
-        return {
-          data: [{
-            user_id: user.id,
-            amount_owed: amountOwed,
-            amount_owes: amountOwes,
-            net_balance: amountOwed - amountOwes
-          }],
-          error: null
-        }
-      } catch (error) {
-        return { data: null, error }
-      }
+      const { data, error } = await supabase.rpc('get_my_balance_in_group', { p_group_id: groupId })
+      return { data, error }
     }
 
     // Fallback simple overall: sum splits for current user (no joins)
